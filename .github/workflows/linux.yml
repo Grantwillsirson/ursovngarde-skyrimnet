@@ -85,6 +85,19 @@ jobs:
                   install -m 755 packaged/bin/urSovngardeServer release-stage/
                   install -m 644 packaged/lib/libSTServer.so release-stage/
 
+            # If GameNetworkingSockets is compiled against other OpenSSL headers than the library it links, calls such
+            # as EVP_DigestSignUpdate (a macro in 1.1.1, a function in 3) stay undefined in libSTServer.so, resolve from
+            # the host's libcrypto at run time and abort the server on the first connection. Starting the server does
+            # not catch it, so check the library for undefined OpenSSL symbols.
+            - name: No undefined OpenSSL symbols in the server library
+              run: |
+                  undefined="$(readelf -W --dyn-syms release-stage/libSTServer.so | awk '$7 == "UND"' | grep -E ' (EVP_|SSL_|OPENSSL_|CRYPTO_|HMAC|BIO_|ERR_)' || true)"
+                  if [ -n "$undefined" ]; then
+                    echo "libSTServer.so leaves OpenSSL symbols to the system:"
+                    echo "$undefined"
+                    exit 1
+                  fi
+
             - name: Verify Linux binary architecture
               run: |
                   file release-stage/urSovngardeServer

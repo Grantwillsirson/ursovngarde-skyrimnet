@@ -46,7 +46,7 @@ add_requires(
     "tiltedcore v0.2.9",
     "cryptopp 8.9.0", 
     "spdlog v1.13.0", 
-    "cpp-httplib 0.14.0",
+    "cpp-httplib 0.15.3",
     "gtest v1.14.0", 
     "mem 1.0.0", 
     "glm 0.9.9+8", 
@@ -62,7 +62,10 @@ end
 -- dependencies' dependencies version pinning
 add_requireconfs("*.mimalloc", { version = "2.2.4", override = true })
 add_requireconfs("*.cmake", { version = "3.30.2", override = true })
-add_requireconfs("*.openssl", { version = "1.1.1-w", override = true })
+-- OpenSSL 1.1.1 is end of life (no fixes since 2023-09), so everything uses the openssl3 package. cpp-httplib below
+-- 0.15.0 and the gamenetworkingsockets port still asked for the 1.1.1 "openssl" package, which also broke the Linux
+-- server: see xmake-repo/packages/g/gamenetworkingsockets. 3.5 is the long-term support release.
+add_requireconfs("*.openssl3", { version = "3.5.7", override = true })
 add_requireconfs("*.zlib", { version = "v1.3.1", override = true })
 if is_plat("linux") then
     add_requireconfs("*.libcurl", { version = "8.7.1", override = true })
