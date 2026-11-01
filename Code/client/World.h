@@ -8,6 +8,7 @@
 #include <Services/CharacterService.h>
 #include <Services/MagicService.h>
 #include <Services/DebugService.h>
+#include <Services/SkyrimNetBridge.h> // SkyrimNet bridge:
 
 #include <Systems/ModSystem.h>
 
@@ -34,6 +35,8 @@ struct World : entt::registry
     const DebugService& GetDebugService() const noexcept { return ctx().at<const DebugService>(); }
     MagicService& GetMagicService() noexcept { return ctx().at<MagicService>(); }
     const MagicService& GetMagicService() const noexcept { return ctx().at<const MagicService>(); }
+    SkyrimNetBridge& GetSkyrimNetBridge() noexcept { return ctx().at<SkyrimNetBridge>(); }                    // SkyrimNet bridge:
+    const SkyrimNetBridge& GetSkyrimNetBridge() const noexcept { return ctx().at<const SkyrimNetBridge>(); } // SkyrimNet bridge:
 
     auto& GetDispatcher() noexcept { return m_dispatcher; }
 
