@@ -51,6 +51,11 @@ struct SkyrimNetBridge
     //! T1.4: removes the blacklist faction from an outgoing faction snapshot (Actor::GetFactions).
     void StripBlacklist(Factions& aFactions) const noexcept;
 
+    //! True when the actor is currently a member of the blacklist faction, from its base NPC factions and
+    //! ExtraFactionChanges (an entry with rank < 0 is a removal). Allocation-free; walks the same data as
+    //! Actor::GetFactions. Used once per actor to pick up membership persisted in a save.
+    [[nodiscard]] bool HasBlacklistFaction(const Actor* apActor) const noexcept;
+
     //! T1.2/T1.3/T1.5: an actor was put in the blacklist (it is remote in this game). Called by Reconcile().
     void OnActorBecameRemote(Actor* apActor) noexcept;
     //! T1.3: an actor was taken out of the blacklist (this game owns it). Called by Reconcile().

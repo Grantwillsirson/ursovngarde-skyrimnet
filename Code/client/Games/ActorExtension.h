@@ -9,6 +9,7 @@ struct ActorExtension
         kRemote = 1 << 0,
         kPlayer = 1 << 1,
         kSkyrimNetBlacklisted = 1 << 2, // SkyrimNet bridge: in SkyrimNet_ActorBlacklistFaction (D8)
+        kSkyrimNetChecked = 1 << 3,     // SkyrimNet bridge: saved faction membership read once
     };
 
     enum class ReconciliationStage
@@ -27,6 +28,8 @@ struct ActorExtension
     void SetPlayer(bool aSet) noexcept;
     bool IsSkyrimNetBlacklisted() const noexcept;       // SkyrimNet bridge:
     void SetSkyrimNetBlacklisted(bool aSet) noexcept;   // SkyrimNet bridge:
+    bool IsSkyrimNetChecked() const noexcept;           // SkyrimNet bridge:
+    void SetSkyrimNetChecked(bool aSet) noexcept;       // SkyrimNet bridge:
 
     ActionEvent LatestAnimation{};
     size_t GraphDescriptorHash = 0;

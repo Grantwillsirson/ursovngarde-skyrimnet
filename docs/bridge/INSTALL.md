@@ -235,3 +235,10 @@ files from `Data` (or disable/remove the mod in MO2 or Vortex). Saves record `Sk
 without it shows the usual missing-plugin warning.
 
 SkyrimNet is unaffected by any of this: uninstall it through your mod manager like any other mod if you want.
+
+**Saves made during co-op with SkyrimNet.** The bridge puts every NPC copy (and the other player's avatar)
+in `SkyrimNet_ActorBlacklistFaction`, and the game saves that like any other faction. If you load such a save
+*without* the bridge (plain SKSE loader, or stock urSovngarde), NPCs that were copies when it was saved may be
+silently ignored by SkyrimNet. Fix: load the save once through this build's `urSovngarde.exe` (the bridge
+repairs local NPCs on sight), or remove the blacklist per NPC with SkyrimNet's wheel menu
+(`skynet_WheelMenu.psc`).

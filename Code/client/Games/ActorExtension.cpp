@@ -56,3 +56,16 @@ void ActorExtension::SetSkyrimNetBlacklisted(bool aSet) noexcept // SkyrimNet br
     else                                                         // SkyrimNet bridge:
         onlineFlags &= ~kSkyrimNetBlacklisted;                   // SkyrimNet bridge:
 }                                                                // SkyrimNet bridge:
+
+bool ActorExtension::IsSkyrimNetChecked() const noexcept // SkyrimNet bridge:
+{                                                         // SkyrimNet bridge:
+    return onlineFlags & kSkyrimNetChecked;               // SkyrimNet bridge:
+}                                                         // SkyrimNet bridge:
+
+void ActorExtension::SetSkyrimNetChecked(bool aSet) noexcept // SkyrimNet bridge:
+{                                                            // SkyrimNet bridge:
+    if (aSet)                                                // SkyrimNet bridge:
+        onlineFlags |= kSkyrimNetChecked;                    // SkyrimNet bridge:
+    else                                                     // SkyrimNet bridge:
+        onlineFlags &= ~kSkyrimNetChecked;                   // SkyrimNet bridge:
+}                                                            // SkyrimNet bridge:

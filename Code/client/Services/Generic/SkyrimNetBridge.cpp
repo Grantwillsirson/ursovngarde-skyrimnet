@@ -9,6 +9,8 @@
 #include <Actor.h>
 #include <Forms/TESForm.h>
 #include <Forms/TESFaction.h>
+#include <Forms/TESNPC.h>
+#include <ExtraData/ExtraFactionChanges.h>
 #include <Games/TES.h>
 #include <Games/ActorExtension.h>
 #include <Structs/Factions.h>
@@ -82,6 +84,16 @@ void SkyrimNetBridge::Reconcile(Actor* apActor, ActorExtension* apExtension) noe
 
     // Copies of NPCs owned elsewhere (T1.2) and the other player's avatar (T1.5) are both remote.
     const bool cWantBlacklisted = apExtension->IsRemote();
+
+    // Once per actor: a save made during co-op persists the faction on NPCs that were copies then. A local
+    // actor's bit starts at 0, so read the real membership and let the compare below remove it.
+    // Remote actors skip this: they are forced into the blacklist anyway (Checked is set below).
+    if (!cWantBlacklisted && !apExtension->IsSkyrimNetChecked())
+    {
+        apExtension->SetSkyrimNetChecked(true);
+        apExtension->SetSkyrimNetBlacklisted(HasBlacklistFaction(apActor));
+    }
+
     if (cWantBlacklisted == apExtension->IsSkyrimNetBlacklisted())
         return;
 
@@ -92,6 +104,7 @@ void SkyrimNetBridge::Reconcile(Actor* apActor, ActorExtension* apExtension) noe
     // Rank 0 adds the actor to the faction, rank -1 removes it (Papyrus AddToFaction / RemoveFromFaction).
     apActor->SetFactionRank(pFaction, cWantBlacklisted ? 0 : -1);
     apExtension->SetSkyrimNetBlacklisted(cWantBlacklisted);
+    apExtension->SetSkyrimNetChecked(true);
 
     spdlog::debug("SkyrimNet bridge: actor {:X} {} SkyrimNet_ActorBlacklistFaction", apActor->formID, cWantBlacklisted ? "added to" : "removed from");
 
@@ -133,6 +146,40 @@ void SkyrimNetBridge::StripBlacklist(Factions& aFactions) const noexcept
     const auto cIsBlacklist = [&blacklistId](const Faction& acFaction) { return acFaction.Id == blacklistId; };
     std::erase_if(aFactions.NpcFactions, cIsBlacklist);
     std::erase_if(aFactions.ExtraFactions, cIsBlacklist);
+}
+
+bool SkyrimNetBridge::HasBlacklistFaction(const Actor* apActor) const noexcept
+{
+    if (!apActor || !IsActive())
+        return false;
+
+    bool hasFaction = false;
+
+    if (const auto* pNpc = Cast<TESNPC>(apActor->baseForm))
+    {
+        const auto& factions = pNpc->actorData.factions;
+        for (auto i = 0u; i < factions.length; ++i)
+        {
+            if (factions[i].faction && factions[i].faction->formID == m_blacklistFactionId)
+            {
+                hasFaction = true;
+                break;
+            }
+        }
+    }
+
+    // ExtraFactionChanges overrides the base record; rank < 0 is what Papyrus RemoveFromFaction leaves behind.
+    if (const auto* pChanges = Cast<ExtraFactionChanges>(apActor->extraData.GetByType(ExtraDataType::Faction)))
+    {
+        for (auto i = 0u; i < pChanges->entries.length; ++i)
+        {
+            const auto& entry = pChanges->entries[i];
+            if (entry.faction && entry.faction->formID == m_blacklistFactionId)
+                hasFaction = entry.rank >= 0;
+        }
+    }
+
+    return hasFaction;
 }
 
 void SkyrimNetBridge::OnActorBecameRemote(Actor* apActor) noexcept
