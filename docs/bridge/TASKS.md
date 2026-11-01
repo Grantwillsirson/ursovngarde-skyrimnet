@@ -31,7 +31,7 @@ Tick a task only in the PR that completes it. A task that touches the network pr
     callback registration function, the list of event type names it accepts, the API version
     macro, and whether any event carries audio. Do **not** commit the header.
   - Acceptance: the notes are enough for T2.1 to be written without the header in hand.
-- [ ] **T0.5** Install guide for the patched build — `AI`, S
+- [x] **T0.5** Install guide for the patched build — `AI`, S
   - `docs/bridge/INSTALL.md`: manual install from a CI artifact, launcher auto-update off, same build
     on both clients and the server, SkyrimNet installed from official pages, GM on host only.
   - Acceptance: a tester follows it without asking questions.
