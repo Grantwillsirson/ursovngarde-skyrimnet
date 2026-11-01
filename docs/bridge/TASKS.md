@@ -14,7 +14,7 @@ Tick a task only in the PR that completes it. A task that touches the network pr
   - Root `README-BRIDGE.md` pointing at `docs/bridge/`.
   - Confirm the unmodified fork builds green on CI; link the run in the PR.
   - Acceptance: CI green on `skyrimnet-bridge`; no source changes outside workflow + docs.
-- [ ] **T0.2** CI: SkyrimNet API header at build time — `AI`, M — depends on T0.1
+- [x] **T0.2** CI: SkyrimNet API header at build time — `AI`, M — depends on T0.1
   - Workflow step: download the latest SkyrimNet release zip from `MinLL/SkyrimNet-GamePlugin`
     releases, extract `CppAPI/PublicAPI.h` into `external/skyrimnet/` (git-ignored). Pin the release
     tag in a single variable.
