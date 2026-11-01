@@ -93,3 +93,6 @@ new_addresses.txt
 
 packaged/*
 /.claude
+
+# SkyrimNet bridge: SkyrimNet files are never committed (license). CI fetches the API header here.
+external/skyrimnet/
