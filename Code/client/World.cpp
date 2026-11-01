@@ -68,6 +68,7 @@ World::World()
     ctx().emplace<VoiceService>(*this, m_dispatcher);
     ctx().emplace<PlayerMarkerService>(*this, m_dispatcher);
     ctx().emplace<ReviveService>(*this, m_dispatcher, m_transport);
+    ctx().emplace<SkyrimNetBridge>(*this, m_dispatcher); // SkyrimNet bridge:
 #ifdef SKYRIMVR
     ctx().emplace<VRConnectService>(*this, m_dispatcher, m_transport);
 #endif

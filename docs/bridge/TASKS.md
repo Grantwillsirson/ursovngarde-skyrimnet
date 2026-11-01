@@ -38,7 +38,7 @@ Tick a task only in the PR that completes it. A task that touches the network pr
 
 ## Milestone 1 — Tier 1: AI follows ownership
 
-- [ ] **T1.1** `SkyrimNetBridge` service skeleton — `AI`, S
+- [x] **T1.1** `SkyrimNetBridge` service skeleton — `AI`, S
   - New `Code/client/Services/Generic/SkyrimNetBridge.{h,cpp}`, registered in `World` like other
     services. `IsActive()` true only when `SkyrimNet.esp` is in the load order. Resolve the
     blacklist faction (`SkyrimNet.esp|0x12DB`) once; log at info level either way.
