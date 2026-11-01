@@ -33,7 +33,7 @@ on:
 env:
     BUILD_MODE: ${{ inputs.build-mode || 'releasedbg' }}
     # SkyrimNet bridge: the SkyrimNet-GamePlugin release whose CppAPI/PublicAPI.h the build compiles against.
-    # Maintainers: pin a tag (e.g. vbeta29-rc4) instead of "latest" so builds are reproducible.
+    # Maintainers: pin a tag (e.g. vbeta29, the latest on 2026-11-01) instead of "latest" so builds are reproducible.
     # The header is never committed (SkyrimNet's licence forbids redistribution); see docs/bridge/ci-skyrimnet-header.md.
     SKYRIMNET_RELEASE: latest
 
@@ -117,44 +117,55 @@ jobs:
                       exit 1
                   fi
 
-                  # The main SkyrimNet archive: not Piper/voice/model packs; prefer a name starting with SkyrimNet
+                  # SkyrimNet archives, not Piper/voice/model packs. vbeta29 had skyrimnet-beta29.zip (no headers) and
+                  # skyrimnet-devkit-beta29.zip, so try devkit/sdk/api archives first, then the rest whose name starts with
+                  # SkyrimNet, then any other, until one holds PublicAPI.h.
                   candidates="$(printf '%s\n' "${assets[@]}" | grep -iE '\.(zip|7z)$' | grep -viE 'piper|voice|model' || true)"
-                  asset="$(grep -iE '^SkyrimNet' <<<"$candidates" | head -n1 || true)"
-                  [ -n "$asset" ] || asset="$(head -n1 <<<"$candidates")"
-                  if [ -z "$asset" ]; then
+                  ordered="$( { grep -iE 'devkit|sdk|api' <<<"$candidates" || true
+                                grep -iE '^SkyrimNet' <<<"$candidates" | grep -viE 'devkit|sdk|api' || true
+                                grep -viE '^SkyrimNet|devkit|sdk|api' <<<"$candidates" || true; } | sed '/^$/d')"
+                  if [ -z "$ordered" ]; then
                       echo "::error::No SkyrimNet .zip/.7z asset found among the assets above"
                       exit 1
                   fi
-                  url="$(jq -r --arg n "$asset" '.assets[] | select(.name == $n) | .browser_download_url' <<<"$release_json")"
-                  echo "Downloading $asset"
                   dl="$RUNNER_TEMP/skyrimnet-release"
-                  mkdir -p "$dl"
-                  archive="$dl/$asset"
-                  curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -o "$archive" "$url"
-
-                  # PublicAPI.h may sit under CppAPI/ or SKSE/Plugins/SkyrimNet/CppAPI/; find it, prefer a CppAPI path
-                  use_unzip=false
-                  if [[ "$asset" =~ \.[zZ][iI][pP]$ ]] && command -v unzip >/dev/null; then use_unzip=true; fi
-                  if $use_unzip; then
-                      entries="$(unzip -Z1 "$archive")"
-                  else
-                      entries="$(7z l -slt "$archive" | sed -n 's/^Path = //p' | tail -n +2)"
-                  fi
-                  matches="$(grep -iE '(^|[/\\])PublicAPI\.h$' <<<"$entries" || true)"
-                  entry="$(grep -iE 'CppAPI[/\\]' <<<"$matches" | head -n1 || true)"
-                  [ -n "$entry" ] || entry="$(head -n1 <<<"$matches")"
-                  if [ -z "$entry" ]; then
-                      echo "::error::PublicAPI.h not found in $asset. Entries ending in .h:"
-                      grep -iE '\.h$' <<<"$entries" || echo "  (none)"
+                  mkdir -p "$dl" external/skyrimnet
+                  found=""
+                  while IFS= read -r asset; do
+                      url="$(jq -r --arg n "$asset" '.assets[] | select(.name == $n) | .browser_download_url' <<<"$release_json")"
+                      echo "Downloading $asset"
+                      archive="$dl/$asset"
+                      curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -o "$archive" "$url"
+                      # PublicAPI.h may sit under CppAPI/ or SKSE/Plugins/SkyrimNet/CppAPI/; find it, prefer a CppAPI path
+                      use_unzip=false
+                      if [[ "$asset" =~ \.[zZ][iI][pP]$ ]] && command -v unzip >/dev/null; then use_unzip=true; fi
+                      if $use_unzip; then
+                          entries="$(unzip -Z1 "$archive")"
+                      else
+                          entries="$(7z l -slt "$archive" | sed -n 's/^Path = //p' | tail -n +2)"
+                      fi
+                      echo "  $(wc -l <<<"$entries") entries"
+                      matches="$(grep -iE '(^|[/\\])PublicAPI\.h$' <<<"$entries" || true)"
+                      entry="$(grep -iE 'CppAPI[/\\]' <<<"$matches" | head -n1 || true)"
+                      [ -n "$entry" ] || entry="$(head -n1 <<<"$matches")"
+                      if [ -n "$entry" ]; then
+                          echo "Found header at: $asset:$entry"
+                          if $use_unzip; then
+                              unzip -p "$archive" "$entry" > external/skyrimnet/PublicAPI.h
+                          else
+                              7z e -so "$archive" "$entry" > external/skyrimnet/PublicAPI.h
+                          fi
+                          found="$asset"
+                          break
+                      fi
+                      echo "  no PublicAPI.h in $asset. Entries ending in .h:"
+                      grep -iE '\.h$' <<<"$entries" | sed 's/^/    /' || echo "    (none)"
+                  done <<<"$ordered"
+                  if [ -z "$found" ]; then
+                      echo "::error::PublicAPI.h not found in any SkyrimNet archive of release '${tag:-$SKYRIMNET_RELEASE}' (see above)"
                       exit 1
                   fi
-                  echo "Found header at: $entry"
-                  mkdir -p external/skyrimnet
-                  if $use_unzip; then
-                      unzip -p "$archive" "$entry" > external/skyrimnet/PublicAPI.h
-                  else
-                      7z e -so "$archive" "$entry" > external/skyrimnet/PublicAPI.h
-                  fi
+                  asset="$found"
                   test -s external/skyrimnet/PublicAPI.h
                   rm -rf "$dl"
                   sha="$(sha256sum external/skyrimnet/PublicAPI.h | cut -d' ' -f1)"
