@@ -132,15 +132,16 @@ def main() -> None:
     milestones, tasks = parse_tasks()
     print(f"Parsed {len(tasks)} tasks across {len(milestones)} milestones from {TASKS.name}")
 
-    # Labels
+    # Labels (REST only: gh's label/issue subcommands need GraphQL, which some proxies block)
     existing_labels = set()
     if not dry:
-        out = gh("label", "list", "--repo", repo, "--limit", "200", "--json", "name")
+        out = gh("api", "--paginate", f"repos/{repo}/labels?per_page=100")
         existing_labels = {l["name"] for l in json.loads(out or "[]")}
     for name, (color, desc) in LABELS.items():
         if name in existing_labels:
             continue
-        gh("label", "create", name, "--repo", repo, "--color", color, "--description", desc, dry=dry)
+        gh("api", "-X", "POST", f"repos/{repo}/labels",
+           "-f", f"name={name}", "-f", f"color={color}", "-f", f"description={desc}", dry=dry)
 
     # Milestones (REST; gh has no milestone create)
     ms_numbers: dict[str, int] = {}
@@ -158,8 +159,8 @@ def main() -> None:
     # Issues
     existing_titles: list[str] = []
     if not dry:
-        out = gh("issue", "list", "--repo", repo, "--state", "all", "--limit", "500", "--json", "title")
-        existing_titles = [i["title"] for i in json.loads(out or "[]")]
+        out = gh("api", "--paginate", f"repos/{repo}/issues?state=all&per_page=100")
+        existing_titles = [i["title"] for i in json.loads(out or "[]") if "pull_request" not in i]
     created = 0
     for t in tasks:
         full_title = f"{t['id']} {t['title']}"
@@ -170,15 +171,14 @@ def main() -> None:
         labels.append({"AI": "ai", "Human": "human-test", "AI+Human": "ai+human"}.get(t["who"], "ai"))
         if t["protocol"]:
             labels.append("protocol")
-        cmd = [
-            "issue", "create", "--repo", repo,
-            "--title", full_title,
-            "--body", issue_body(t),
-            "--label", ",".join(labels),
-        ]
-        if t["milestone"]:
-            cmd += ["--milestone", t["milestone"]]
-        gh(*cmd, dry=dry)
+        payload = {"title": full_title, "body": issue_body(t), "labels": labels}
+        if t["milestone"] and t["milestone"] in ms_numbers:
+            payload["milestone"] = ms_numbers[t["milestone"]]
+        if dry:
+            print("DRY: POST issue", json.dumps(payload)[:160], "...")
+        else:
+            subprocess.run(["gh", "api", "-X", "POST", f"repos/{repo}/issues", "--input", "-"],
+                           input=json.dumps(payload), text=True, check=True, capture_output=True)
         created += 1
         print(f"created: {full_title}")
     print(f"Done. {created} issue(s) created.")
