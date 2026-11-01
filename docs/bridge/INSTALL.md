@@ -181,7 +181,18 @@ is (unverified). Use your own server.
      UIExtensions; how to open that menu is (unverified)).
    - In the dashboard: the setting is `gamemaster.agentEnabled` in the `Game` config; its exact page in the
      dashboard is (unverified).
-   The bridge does not enforce this yet (task T1.7). It is a rule you follow by hand.
+   The bridge does not check this for you (decision D9 in `DECISIONS.md`): it is a rule you follow by hand.
+
+   **Game Master: the rule.** In co-op the **host** is the **party leader** (the player who created the
+   party in urSovngarde and drives quests and scenes). Only the party leader's PC runs the Game Master:
+   - Party leader: Game Master **ON** (or off, if you want no invented events at all).
+   - Every other player: Game Master **OFF**, before you join the party.
+   - If leadership changes (the leader leaves, or hands leadership over), the new leader may turn it ON
+     and the old leader turns it OFF.
+   - Why: the Game Master invents world events and spawns things. urSovngarde syncs spawns, so with two
+     Game Masters both players get both sets of events. Nothing breaks, but events double up.
+   - Check it before every session: SkyrimNet keeps the setting between sessions, so a PC that ever
+     played solo with the Game Master on still has it on.
 3. **Model for testing:** pick a fast, cheap model so replies come quickly. The setup wizard offers presets
    (Budget, Balanced, Performance); Budget or Balanced is fine for tests. Use the same preset on all PCs.
 4. **Voice for testing:** Piper (CPU, default), with the Piper voice models installed (step 2.18).
