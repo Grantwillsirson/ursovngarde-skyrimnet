@@ -35,7 +35,7 @@ env:
     # SkyrimNet bridge: the SkyrimNet-GamePlugin release whose CppAPI/PublicAPI.h the build compiles against.
     # Maintainers: pin a tag (e.g. vbeta29, the latest on 2026-11-01) instead of "latest" so builds are reproducible.
     # The header is never committed (SkyrimNet's licence forbids redistribution); see docs/bridge/ci-skyrimnet-header.md.
-    SKYRIMNET_RELEASE: latest
+    SKYRIMNET_RELEASE: vbeta29
 
 jobs:
     build:
