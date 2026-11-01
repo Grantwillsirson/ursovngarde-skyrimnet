@@ -9,7 +9,7 @@ Tick a task only in the PR that completes it. A task that touches the network pr
 
 ## Milestone 0 — Setup (gate: T0.3 answered before Tier 2 starts)
 
-- [ ] **T0.1** Repo hygiene and green baseline — `AI`, S
+- [x] **T0.1** Repo hygiene and green baseline — `AI`, S
   - Add `skyrimnet-bridge` to `.github/workflows/windows.yml` push/PR triggers.
   - Root `README-BRIDGE.md` pointing at `docs/bridge/`.
   - Confirm the unmodified fork builds green on CI; link the run in the PR.
