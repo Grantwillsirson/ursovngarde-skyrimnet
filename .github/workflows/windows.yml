@@ -17,9 +17,25 @@ on:
                 required: false
                 type: boolean
                 default: false
+            fetch_skyrimnet_header:
+                required: false
+                type: boolean
+                default: true
+    # SkyrimNet bridge: run by hand, optionally without the SkyrimNet header, to prove the build passes either way
+    workflow_dispatch:
+        inputs:
+            fetch_skyrimnet_header:
+                description: "Fetch SkyrimNet's CppAPI/PublicAPI.h from its release (off = build without it)"
+                required: false
+                type: boolean
+                default: true
 
 env:
     BUILD_MODE: ${{ inputs.build-mode || 'releasedbg' }}
+    # SkyrimNet bridge: the SkyrimNet-GamePlugin release whose CppAPI/PublicAPI.h the build compiles against.
+    # Maintainers: pin a tag (e.g. vbeta29-rc4) instead of "latest" so builds are reproducible.
+    # The header is never committed (SkyrimNet's licence forbids redistribution); see docs/bridge/ci-skyrimnet-header.md.
+    SKYRIMNET_RELEASE: latest
 
 jobs:
     build:
@@ -74,6 +90,76 @@ jobs:
                   xmake-version: 3.1.0
                   actions-cache-folder: ".xmake-cache" # This doesn't cache dependencies, only xmake itself
                   actions-cache-key: ${{ matrix.os }}
+
+            # SkyrimNet bridge: download SkyrimNet's release and extract only CppAPI/PublicAPI.h into the git-ignored
+            # external/skyrimnet/. Code/client/xmake.lua defines SKYRIMNET_API_AVAILABLE when the file is there.
+            # Push and pull_request runs have no inputs, so format() gives '' and the step runs; only an explicit false skips it.
+            - name: Fetch SkyrimNet API header
+              if: ${{ format('{0}', inputs.fetch_skyrimnet_header) != 'false' }}
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  SKYRIMNET_REPO: MinLL/SkyrimNet-GamePlugin
+              run: |
+                  set -euo pipefail
+                  if [ "$SKYRIMNET_RELEASE" = "latest" ]; then
+                      # /releases/latest skips pre-releases; SkyrimNet may publish only those, so fall back to the newest one
+                      release_json="$(gh api "repos/$SKYRIMNET_REPO/releases/latest" 2>/dev/null || gh api "repos/$SKYRIMNET_REPO/releases?per_page=1" --jq '.[0]')"
+                  else
+                      release_json="$(gh api "repos/$SKYRIMNET_REPO/releases/tags/$SKYRIMNET_RELEASE")"
+                  fi
+                  tag="$(jq -r '.tag_name // empty' <<<"$release_json")"
+                  echo "SkyrimNet release: ${tag:-<none>} (SKYRIMNET_RELEASE=$SKYRIMNET_RELEASE)"
+                  mapfile -t assets < <(jq -r '.assets[]? | .name' <<<"$release_json")
+                  echo "Assets seen (${#assets[@]}):"
+                  printf '  %s\n' "${assets[@]}"
+                  if [ "${#assets[@]}" -eq 0 ]; then
+                      echo "::error::SkyrimNet release '${tag:-$SKYRIMNET_RELEASE}' lists no assets"
+                      exit 1
+                  fi
+
+                  # The main SkyrimNet archive: not Piper/voice/model packs; prefer a name starting with SkyrimNet
+                  candidates="$(printf '%s\n' "${assets[@]}" | grep -iE '\.(zip|7z)$' | grep -viE 'piper|voice|model' || true)"
+                  asset="$(grep -iE '^SkyrimNet' <<<"$candidates" | head -n1 || true)"
+                  [ -n "$asset" ] || asset="$(head -n1 <<<"$candidates")"
+                  if [ -z "$asset" ]; then
+                      echo "::error::No SkyrimNet .zip/.7z asset found among the assets above"
+                      exit 1
+                  fi
+                  url="$(jq -r --arg n "$asset" '.assets[] | select(.name == $n) | .browser_download_url' <<<"$release_json")"
+                  echo "Downloading $asset"
+                  dl="$RUNNER_TEMP/skyrimnet-release"
+                  mkdir -p "$dl"
+                  archive="$dl/$asset"
+                  curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -o "$archive" "$url"
+
+                  # PublicAPI.h may sit under CppAPI/ or SKSE/Plugins/SkyrimNet/CppAPI/; find it, prefer a CppAPI path
+                  use_unzip=false
+                  if [[ "$asset" =~ \.[zZ][iI][pP]$ ]] && command -v unzip >/dev/null; then use_unzip=true; fi
+                  if $use_unzip; then
+                      entries="$(unzip -Z1 "$archive")"
+                  else
+                      entries="$(7z l -slt "$archive" | sed -n 's/^Path = //p' | tail -n +2)"
+                  fi
+                  matches="$(grep -iE '(^|[/\\])PublicAPI\.h$' <<<"$entries" || true)"
+                  entry="$(grep -iE 'CppAPI[/\\]' <<<"$matches" | head -n1 || true)"
+                  [ -n "$entry" ] || entry="$(head -n1 <<<"$matches")"
+                  if [ -z "$entry" ]; then
+                      echo "::error::PublicAPI.h not found in $asset. Entries ending in .h:"
+                      grep -iE '\.h$' <<<"$entries" || echo "  (none)"
+                      exit 1
+                  fi
+                  echo "Found header at: $entry"
+                  mkdir -p external/skyrimnet
+                  if $use_unzip; then
+                      unzip -p "$archive" "$entry" > external/skyrimnet/PublicAPI.h
+                  else
+                      7z e -so "$archive" "$entry" > external/skyrimnet/PublicAPI.h
+                  fi
+                  test -s external/skyrimnet/PublicAPI.h
+                  rm -rf "$dl"
+                  sha="$(sha256sum external/skyrimnet/PublicAPI.h | cut -d' ' -f1)"
+                  echo "external/skyrimnet/PublicAPI.h from $tag/$asset:$entry (sha256 $sha)"
+                  echo "SkyrimNet header: \`$entry\` from \`$asset\` (release \`$tag\`), sha256 \`$sha\`" >> "$GITHUB_STEP_SUMMARY"
 
             - name: Configure xmake and install dependencies
               run: xmake config --plat=windows --arch=${{ matrix.arch }} --mode="$BUILD_MODE" --yes -vD

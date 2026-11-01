@@ -79,6 +79,19 @@ target(name)
         -- Only the header is used: the game's own openvr_api.dll is called at runtime (VRDashboard.cpp).
         add_packages("openvr")
     end
+
+    -- SkyrimNet bridge: SkyrimNet's C++ API header is never committed (its licence forbids redistribution).
+    -- CI fetches it into external/skyrimnet/ (windows.yml); developers drop it there by hand. Builds pass without it.
+    on_config(function(target)
+        local skyrimnet_dir = path.join(os.projectdir(), "external", "skyrimnet")
+        if os.isfile(path.join(skyrimnet_dir, "PublicAPI.h")) then
+            target:add("defines", "SKYRIMNET_API_AVAILABLE")
+            target:add("includedirs", skyrimnet_dir)
+            print("SkyrimNet bridge: %s builds with the SkyrimNet API header (%s)", target:name(), skyrimnet_dir)
+        else
+            print("SkyrimNet bridge: %s builds without the SkyrimNet API header (none in %s)", target:name(), skyrimnet_dir)
+        end
+    end)
 end
 
 add_requires("tiltedcore")
