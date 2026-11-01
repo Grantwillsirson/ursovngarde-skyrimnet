@@ -6,6 +6,7 @@ on:
         branches:
             - main
             - dev
+            - skyrimnet-bridge
     workflow_call:
         inputs:
             build-mode:
