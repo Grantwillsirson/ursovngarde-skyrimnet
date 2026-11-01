@@ -3,6 +3,36 @@
 Newest first. One entry per decision: context, decision, consequences, status. Reversing a decision
 is a new entry that links the old one.
 
+## D9 — Game Master on host only stays a manual rule; no automatic check in Tier 1 (2026-11-01)
+
+Context: T1.7 asked for a warning when SkyrimNet's Game Master is on and this client is not the
+party leader. SkyrimNet stores the toggle as `gamemaster.agentEnabled` in its `Game` config
+(confirmed in `skynet_ConfigUtilityMenu.psc`: `SkyrimNetApi.GetConfigBool("Game",
+"gamemaster.agentEnabled", true)`), and exposes `bool GetConfigBool(String configName, String path,
+bool defaultValue) Global Native` (`SkyrimNetApi.psc`). urSovngarde's `PapyrusLookup` /
+`GlobalPapyrusFunction` (`Code/client/Services/PapyrusService.h`) do not call a native through the
+VM: they record the raw C++ callback the registering plugin stored at offset 0x50 of its
+`NativeFunction` object (`HookRegisterPapyrusFunction`, `Code/client/Games/Misc/BSScript.cpp`) and
+call that pointer with a hand-written signature. That works for the engine's own natives, whose
+signatures are known (`(VM*, stackId, self, args...)`, strings as `BSFixedString*`). SkyrimNet is
+closed source: its callback may be the short or long CommonLib form (with or without `VM*`/stack
+id before the `StaticFunctionTag*`), and its string parameters may be `BSFixedString`,
+`std::string` or `std::string_view`, each passed differently under the x64 ABI. Calling it with a
+guessed signature is undefined behaviour (likely a crash) on every PC that has SkyrimNet, which
+breaks rule 2's spirit, and it cannot be verified without the binary. urSovngarde has no
+dispatch-by-name helper (`IVirtualMachine::DispatchStaticCall` with marshalled `Variable`s) that
+would let the VM do the marshalling; adding one needs the VR vtable slot reverse-engineered.
+Decision: implement T1.7 as documentation only. `INSTALL.md` §6 states the rule explicitly: the
+host is the party leader; Game Master ON there, OFF everywhere else; re-check after a leadership
+change. No C++ change.
+Consequences: two Game Masters remain possible if players ignore the rule; the effect is doubled
+events, not a crash or desync. Revisit when one of these exists: (a) the C++ API from
+`CppAPI/PublicAPI.h` (T2.1) offers a config read; (b) a bridge Papyrus script (Tier 2 add-on) that
+calls `SkyrimNetApi.GetConfigBool("Game", "gamemaster.agentEnabled", false)` in Papyrus and reports
+the result to the client through a urSovngarde native; (c) a reviewed `DispatchStaticCall` binding.
+Option (b) is the cheapest; the C++ side would then compare against `PartyService::IsLeader()` and
+show the HUD warning. Status: accepted.
+
 ## D8 — Tier 1 keeps the blacklist from one per-frame hook, not from every ownership call site (2026-11-01)
 
 Context: `CharacterService.cpp` flips actors between remote and local in twelve places

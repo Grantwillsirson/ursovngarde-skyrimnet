@@ -71,10 +71,11 @@ Tick a task only in the PR that completes it. A task that touches the network pr
     `IsRemotePlayer()` is true (urSovngarde's native) and `SkyrimNet.esp` is loaded. Compiles with
     the MIT `SkyrimNetApi.psc` and urSovngarde's Papyrus headers.
   - Acceptance: `.psc` compiles in CI (add a papyrus-compiler step) and the ESP builds from Spriggit.
-- [ ] **T1.7** Game Master on host only — `AI`, S — depends on T1.1
+- [x] **T1.7** Game Master on host only — `AI`, S — depends on T1.1
   - If `SkyrimNetApi.GetConfigBool` can read the GM toggle, warn via HUD message when GM is on and
     this client is not the host. If not discoverable, document the manual rule in INSTALL.md.
   - Acceptance: builds; message text reviewed.
+  - Done as documentation only (D9): the guard cannot call SkyrimNet's native safely from C++.
 - [ ] **T1.8** Tier 1 session — `Human`, M — depends on T1.2–T1.5, T0.5
   - Verify: each player can only converse with NPCs their game owns; the other player's avatar never
     speaks on its own; ownership handoff when walking apart/together; no crash in 30 min.
