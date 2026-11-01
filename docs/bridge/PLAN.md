@@ -83,6 +83,20 @@ Known risk: faction churn. Each `SetFactions` briefly exposes the copy between
 Mitigation if observed: stamp copies with a keyword as well and extend SkyrimNet's YAML actor filter
 to honour it (keywords are not in the synced faction list).
 
+#### Tier 1 as built (T1.2–T1.5, D8)
+
+- `HookActorProcess` calls `SkyrimNetBridge::Reconcile(actor, extension)` for every extended actor every
+  frame, before the remote early-return. Desired state = `IsRemote()` (NPC copies **and** the remote
+  player avatar, so steps 1.2 and 1.6 are one rule); actual state = `ActorExtension` bit
+  `kSkyrimNetBlacklisted`. On mismatch only: `SetFactionRank(blacklist, 0)` (add) or `-1` (remove),
+  flip the bit, log at debug, call `OnActorBecameRemote` / `OnActorBecameLocal`. Steady state is a bit compare.
+- Ownership transfer (1.3) needs no call site: the next frame after `SetRemote()` flips, the mismatch is seen.
+  Dialogue purge on loss of ownership is a TODO (SkyrimNet's `PurgeDialogue` is global, not per actor).
+- `Actor::SetFactions` → `OnFactionsReset()` clears the bit after `RemoveFromAllFactions()`; the next
+  frame re-adds the faction (≤ 1 frame exposed). `Actor::GetFactions` → `StripBlacklist()` removes the
+  faction's server `GameId` from `NpcFactions` and `ExtraFactions`, so it never leaves this client.
+- All of it returns at once when `IsActive()` is false (no `SkyrimNet.esp`).
+
 ### Tier 2 — text both ways (one new message)
 
 | Step | What |

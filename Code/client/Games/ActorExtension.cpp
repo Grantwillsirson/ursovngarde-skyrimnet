@@ -42,3 +42,17 @@ void ActorExtension::SetPlayer(bool aSet) noexcept
     else
         onlineFlags &= ~kPlayer;
 }
+
+// SkyrimNet bridge: blacklist bit, kept equal to IsRemote() by SkyrimNetBridge::Reconcile (D8).
+bool ActorExtension::IsSkyrimNetBlacklisted() const noexcept // SkyrimNet bridge:
+{                                                             // SkyrimNet bridge:
+    return onlineFlags & kSkyrimNetBlacklisted;               // SkyrimNet bridge:
+}                                                             // SkyrimNet bridge:
+
+void ActorExtension::SetSkyrimNetBlacklisted(bool aSet) noexcept // SkyrimNet bridge:
+{                                                                // SkyrimNet bridge:
+    if (aSet)                                                    // SkyrimNet bridge:
+        onlineFlags |= kSkyrimNetBlacklisted;                    // SkyrimNet bridge:
+    else                                                         // SkyrimNet bridge:
+        onlineFlags &= ~kSkyrimNetBlacklisted;                   // SkyrimNet bridge:
+}                                                                // SkyrimNet bridge:

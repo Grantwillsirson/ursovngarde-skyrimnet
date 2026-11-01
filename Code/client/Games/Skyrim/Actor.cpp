@@ -745,6 +745,7 @@ Factions Actor::GetFactions() const noexcept
         }
     }
 
+    World::Get().GetSkyrimNetBridge().StripBlacklist(result); // SkyrimNet bridge: never sent to other clients (D8)
     return result;
 }
 
@@ -912,6 +913,7 @@ void Actor::SetActorValues(const ActorValues& acActorValues) noexcept
 void Actor::SetFactions(const Factions& acFactions) noexcept
 {
     RemoveFromAllFactions();
+    World::Get().GetSkyrimNetBridge().OnFactionsReset(GetExtension()); // SkyrimNet bridge: re-added next frame (D8)
 
     auto& modSystem = World::Get().GetModSystem();
 
@@ -1662,6 +1664,8 @@ char TP_MAKE_THISCALL(HookActorProcess, Actor, float aDeltaTime)
     // Bleeding out is the game's recoverable downed state, so it is processed here like a dying body, or the NPC never gets up.
     // So is an NPC copy knocked to the floor: its get-up runs here, once its ragdoll has come to rest.
     const ActorExtension* pExtension = apThis->GetExtension();
+    if (pExtension)                                                                    // SkyrimNet bridge: D8 blacklist follows IsRemote()
+        World::Get().GetSkyrimNetBridge().Reconcile(apThis, apThis->GetExtension());  // SkyrimNet bridge:
     const bool cKnockedNpc = pExtension && !pExtension->IsRemotePlayer() && apThis->actorState.IsKnockedDown();
     if (pExtension && pExtension->IsRemote() && !apThis->actorState.IsDeadOrDying() && !apThis->actorState.IsBleedingOut() && !cKnockedNpc)
     {

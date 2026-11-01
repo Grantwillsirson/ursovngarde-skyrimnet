@@ -10,6 +10,9 @@
 #include <Forms/TESForm.h>
 #include <Forms/TESFaction.h>
 #include <Games/TES.h>
+#include <Games/ActorExtension.h>
+#include <Structs/Factions.h>
+#include <Systems/ModSystem.h>
 
 SkyrimNetBridge::SkyrimNetBridge(World& aWorld, entt::dispatcher& aDispatcher)
     : m_world(aWorld)
@@ -71,12 +74,77 @@ uint32_t SkyrimNetBridge::GetBlacklistFactionId() const noexcept
     return IsActive() ? m_blacklistFactionId : 0;
 }
 
+void SkyrimNetBridge::Reconcile(Actor* apActor, ActorExtension* apExtension) noexcept
+{
+    // Hot path: runs for every extended actor every frame. Cached state compare first, then one bit compare.
+    if (!apActor || !apExtension || !IsActive())
+        return;
+
+    // Copies of NPCs owned elsewhere (T1.2) and the other player's avatar (T1.5) are both remote.
+    const bool cWantBlacklisted = apExtension->IsRemote();
+    if (cWantBlacklisted == apExtension->IsSkyrimNetBlacklisted())
+        return;
+
+    TESFaction* pFaction = GetBlacklistFaction();
+    if (!pFaction)
+        return;
+
+    // Rank 0 adds the actor to the faction, rank -1 removes it (Papyrus AddToFaction / RemoveFromFaction).
+    apActor->SetFactionRank(pFaction, cWantBlacklisted ? 0 : -1);
+    apExtension->SetSkyrimNetBlacklisted(cWantBlacklisted);
+
+    spdlog::debug("SkyrimNet bridge: actor {:X} {} SkyrimNet_ActorBlacklistFaction", apActor->formID, cWantBlacklisted ? "added to" : "removed from");
+
+    if (cWantBlacklisted)
+    {
+        OnActorBecameRemote(apActor);
+        if (apExtension->IsRemotePlayer())
+            OnRemotePlayerAdded(apActor);
+    }
+    else
+        OnActorBecameLocal(apActor);
+}
+
+void SkyrimNetBridge::OnFactionsReset(ActorExtension* apExtension) noexcept
+{
+    // RemoveFromAllFactions() also removed the blacklist; the next Reconcile() puts it back if still remote.
+    if (apExtension)
+        apExtension->SetSkyrimNetBlacklisted(false);
+}
+
+void SkyrimNetBridge::StripBlacklist(Factions& aFactions) const noexcept
+{
+    if (!IsActive())
+        return;
+
+    // Converted on every call rather than cached: the server mod ids are reassigned on each connection.
+    // A plain array lookup for a standard plugin, and SkyrimNet.esp is never ESL-flagged here (see IsActive()).
+    GameId blacklistId{0, 0};
+    if (!m_world.GetModSystem().GetServerModId(m_blacklistFactionId, blacklistId))
+    {
+        if (!m_stripFailureLogged)
+        {
+            m_stripFailureLogged = true;
+            spdlog::warn("SkyrimNet bridge: no server id for blacklist faction 0x{:08X}; outgoing factions are not stripped", m_blacklistFactionId);
+        }
+        return;
+    }
+
+    const auto cIsBlacklist = [&blacklistId](const Faction& acFaction) { return acFaction.Id == blacklistId; };
+    std::erase_if(aFactions.NpcFactions, cIsBlacklist);
+    std::erase_if(aFactions.ExtraFactions, cIsBlacklist);
+}
+
 void SkyrimNetBridge::OnActorBecameRemote(Actor* apActor) noexcept
 {
     if (!IsActive() || !apActor)
         return;
 
-    spdlog::debug("SkyrimNet bridge: actor {:X} became remote (stub, T1.2)", apActor->formID);
+    spdlog::debug("SkyrimNet bridge: actor {:X} became remote; SkyrimNet AI suppressed here", apActor->formID);
+
+    // TODO(T1.3): losing ownership should drop this actor's queued SkyrimNet lines. SkyrimNet's Papyrus API
+    // has no per-actor purge (SkyrimNetApi.PurgeDialogue is global); a config-flagged global
+    // PurgeDialogue(true) is deferred to a later task. Nothing is called into SkyrimNet here.
 }
 
 void SkyrimNetBridge::OnActorBecameLocal(Actor* apActor) noexcept
@@ -84,7 +152,7 @@ void SkyrimNetBridge::OnActorBecameLocal(Actor* apActor) noexcept
     if (!IsActive() || !apActor)
         return;
 
-    spdlog::debug("SkyrimNet bridge: actor {:X} became local (stub, T1.3)", apActor->formID);
+    spdlog::debug("SkyrimNet bridge: actor {:X} became local; SkyrimNet AI runs here", apActor->formID);
 }
 
 void SkyrimNetBridge::OnRemotePlayerAdded(Actor* apActor) noexcept
@@ -92,7 +160,7 @@ void SkyrimNetBridge::OnRemotePlayerAdded(Actor* apActor) noexcept
     if (!IsActive() || !apActor)
         return;
 
-    spdlog::debug("SkyrimNet bridge: remote player {:X} added (stub, T1.5)", apActor->formID);
+    spdlog::debug("SkyrimNet bridge: remote player {:X} blacklisted", apActor->formID);
 }
 
 void SkyrimNetBridge::OnUpdate(const UpdateEvent&) noexcept

@@ -47,22 +47,22 @@ Tick a task only in the PR that completes it. A task that touches the network pr
     services. `IsActive()` true only when `SkyrimNet.esp` is in the load order. Resolve the
     blacklist faction (`SkyrimNet.esp|0x12DB`) once; log at info level either way.
   - Acceptance: builds; log line `SkyrimNet bridge: active/inactive` appears; zero behaviour change.
-- [ ] **T1.2** Blacklist remote copies — `AI`, M — depends on T1.1
+- [x] **T1.2** Blacklist remote copies — `AI`, M — depends on T1.1
   - On every path that creates or re-enables a remote actor (`CharacterService::OnActorAdded` with a
     `RemoteComponent`, spawn-request handlers, `WaitingFor3D` completion) call
     `SkyrimNetBridge::OnActorBecameRemote(actor)` → `AddToFaction`.
   - Acceptance: builds; code review confirms every remote-creation path is covered (list them in the PR).
-- [ ] **T1.3** Ownership transfer in both directions — `AI`, M — depends on T1.2
+- [x] **T1.3** Ownership transfer in both directions — `AI`, M — depends on T1.2
   - Hook the `RemoteComponent` ↔ `LocalComponent` swap: becoming owner → remove faction; losing
     ownership → add faction and request a deferred purge of that actor's queued SkyrimNet dialogue.
   - Acceptance: builds; PR lists the transfer paths touched; purge call compiles against the Papyrus
     native or is stubbed with a TODO if no per-actor purge exists.
-- [ ] **T1.4** Survive faction sync and never send it — `AI`, S — depends on T1.2
+- [x] **T1.4** Survive faction sync and never send it — `AI`, S — depends on T1.2
   - `Actor::SetFactions`: after applying the owner's list, re-add the blacklist when `IsRemote()`.
   - Outgoing `FactionsContent`: strip the blacklist faction.
   - Acceptance: builds; unit-style test of the strip step if the encoding tests allow; diff in
     upstream files ≤ 15 lines, each marked `// SkyrimNet bridge:`.
-- [ ] **T1.5** Remote player avatar blacklisted — `AI`, S — depends on T1.1
+- [x] **T1.5** Remote player avatar blacklisted — `AI`, S — depends on T1.1
   - `OnActorAdded` with `IsRemotePlayer()` → add faction. Also re-add after `SetFactions` on players.
   - Acceptance: builds; behaviour documented in PLAN §3 step 1.6.
 - [ ] **T1.6** Papyrus fallback micro-mod — `AI`, S
