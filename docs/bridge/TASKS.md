@@ -38,6 +38,10 @@ Tick a task only in the PR that completes it. A task that touches the network pr
 
 ## Milestone 1 — Tier 1: AI follows ownership
 
+> **D8 (2026-11-01):** T1.2–T1.5 are implemented together in one PR through the `HookActorProcess`
+> reconciliation described in `DECISIONS.md` D8 and `PLAN.md` §3. Their acceptance criteria still apply;
+> the "every remote-creation path" wording in T1.2 is satisfied by the per-frame hook.
+
 - [x] **T1.1** `SkyrimNetBridge` service skeleton — `AI`, S
   - New `Code/client/Services/Generic/SkyrimNetBridge.{h,cpp}`, registered in `World` like other
     services. `IsActive()` true only when `SkyrimNet.esp` is in the load order. Resolve the

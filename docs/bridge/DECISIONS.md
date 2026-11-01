@@ -3,6 +3,26 @@
 Newest first. One entry per decision: context, decision, consequences, status. Reversing a decision
 is a new entry that links the old one.
 
+## D8 — Tier 1 keeps the blacklist from one per-frame hook, not from every ownership call site (2026-11-01)
+
+Context: `CharacterService.cpp` flips actors between remote and local in twelve places
+(`SetRemote(true/false)`), and `Actor::SetFactions` wipes every local faction on each sync.
+Instrumenting each site is brittle against upstream merges. `HookActorProcess`
+(`Code/client/Games/Skyrim/Actor.cpp`) already runs for every actor every frame and already reads
+`IsRemote()`.
+Decision: the bridge reconciles desired vs actual blacklist state in that hook, before the remote
+early-return: remote (copy or remote player) and not yet blacklisted → `SetFactionRank(blacklist, 0)`;
+local and blacklisted → `SetFactionRank(blacklist, -1)`. "Blacklisted" is a new bit in
+`ActorExtension` (`kSkyrimNetBlacklisted`), so the per-frame cost is a flag compare, not a faction
+scan. `Actor::SetFactions` clears that bit after `RemoveFromAllFactions()`, so a sync wipe is repaired
+on the next frame. `Actor::GetFactions()` strips the blacklist faction before returning, so it is
+never sent to another client. Ownership transfer therefore needs no instrumentation; the transition
+is detected in the hook (bit vs `IsRemote()`), which is also where the optional dialogue purge on
+loss of ownership is triggered.
+Consequences: T1.2, T1.3, T1.4 and T1.5 are delivered as one PR; upstream edits are three marked
+blocks (`HookActorProcess`, `SetFactions`, `GetFactions`) plus one enum bit. Known cost: a copy is
+exposed to SkyrimNet for at most one frame after each faction sync.
+
 ## D7 — Session roles: overseer plans and reviews, cheaper sessions implement, humans test (2026-11-01)
 
 Context: the owner wants to spend tokens efficiently and let a friend contribute with their own.
