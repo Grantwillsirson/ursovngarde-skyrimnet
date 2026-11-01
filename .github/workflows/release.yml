@@ -8,6 +8,7 @@ name: Create GitHub Release
 # It is then handed to make-release.ps1, so both ways give the same entries.
 #
 # Run by hand (Actions, "Create GitHub Release", Run workflow) it builds the zips as an artifact and publishes nothing.
+# SkyrimNet bridge: on this fork, run it by hand on skyrimnet-bridge to get a tester build (docs/bridge/INSTALL.md §3).
 # That is a way to try a branch before tagging it.
 #
 # The Linux server (linux.yml, x64 and arm64) is published beside the zips as urSovngardeServer-<version>-linux-<arch>.tar.gz.
